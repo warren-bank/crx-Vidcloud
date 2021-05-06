@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Vidcloud
 // @description  Watch videos in external player.
-// @version      1.0.0
+// @version      1.0.1
 // @match        *://vidnext.net/*
 // @match        *://*.vidnext.net/*
 // @match        *://vidcloud9.com/*
@@ -218,7 +218,7 @@ var get_iframe_content = function() {
 // ----------------------------------------------------------------------------- process current window
 
 var process_current_window = function() {
-  var config, source, video_url, video_type, referer_url
+  var the_player, config, source, video_url, video_type, referer_url
   var iframe_content, delay_ms
 
   if (
@@ -227,25 +227,33 @@ var process_current_window = function() {
   ) {
     // process jwplayer playlist sources
 
-    config = state.current_window.jwplayer().getConfig()
+    the_player = state.current_window.jwplayer()
 
     if (
-         config && ('object' === (typeof config))
-      && config.sources && Array.isArray(config.sources) && config.sources.length
+         the_player
+      && ('object'   === (typeof the_player))
+      && ('function' === (typeof the_player.getConfig))
     ) {
-      for (var i=0; i < config.sources.length; i++) {
-        source = config.sources[i]
-        if (!source.file) continue
+      config = the_player.getConfig()
 
-        video_url  = source.file + ((source.type) ? ('#video.' + source.type) : '')
-        video_type = (source.type) ? ('video/' + source.type) : null
-        break
-      }
+      if (
+           config && ('object' === (typeof config))
+        && config.sources && Array.isArray(config.sources) && config.sources.length
+      ) {
+        for (var i=0; i < config.sources.length; i++) {
+          source = config.sources[i]
+          if (!source.file) continue
 
-      if (video_url) {
-        referer_url = state.current_window.location.href || unsafeWindow.location.href
-        process_video_url(video_url, video_type, referer_url)
-        return true
+          video_url  = source.file + ((source.type) ? ('#video.' + source.type) : '')
+          video_type = (source.type) ? ('video/' + source.type) : null
+          break
+        }
+
+        if (video_url) {
+          referer_url = state.current_window.location.href || unsafeWindow.location.href
+          process_video_url(video_url, video_type, referer_url)
+          return true
+        }
       }
     }
   }
