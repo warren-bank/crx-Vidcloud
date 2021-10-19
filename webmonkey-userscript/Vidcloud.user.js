@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Vidcloud
 // @description  Watch videos in external player.
-// @version      1.0.2
+// @version      1.0.3
 // @match        *://vidembed.cc/*
 // @match        *://*.vidembed.cc/*
 // @match        *://vidnext.net/*
@@ -26,26 +26,32 @@
 // ----------------------------------------------------------------------------- constants
 
 var user_options = {
-  "poll_window_interval_ms":        500,
-  "poll_window_timeout_ms":       30000,
+  "common": {
+    "emulate_webmonkey":            false,
 
-  "redirect_to_webcast_reloaded": true,
-  "force_http":                   true,
-  "force_https":                  false,
-
-  "emulate_webmonkey":            true
+    "poll_window_interval_ms":        500,
+    "poll_window_timeout_ms":       30000
+  },
+  "webmonkey": {
+    "post_intent_redirect_to_url":  "about:blank"
+  },
+  "greasemonkey": {
+    "redirect_to_webcast_reloaded": true,
+    "force_http":                   true,
+    "force_https":                  false
+  }
 }
 
 // ----------------------------------------------------------------------------- state
 
 var state = {
-  "current_window":               null,
-  "poll_window_timer":            null
+  "current_window":                 null,
+  "poll_window_timer":              null
 }
 
 // ----------------------------------------------------------------------------- retry until success or timeout occurs
 
-var max_poll_window_attempts = Math.ceil(user_options.poll_window_timeout_ms / user_options.poll_window_interval_ms)
+var max_poll_window_attempts = Math.ceil(user_options.common.poll_window_timeout_ms / user_options.common.poll_window_interval_ms)
 
 var clear_poll_window_timer = function() {
   if (!state.poll_window_timer) return
@@ -68,7 +74,7 @@ var poll_window = function(process_window, count_poll_window_attempts) {
 
           poll_window(process_window, count_poll_window_attempts)
         },
-        user_options.poll_window_interval_ms
+        user_options.common.poll_window_interval_ms
       )
     }
   }
@@ -93,8 +99,8 @@ var delay_poll_window = function(process_window, delay_ms) {
 // ----------------------------------------------------------------------------- URL links to tools on Webcast Reloaded website
 
 var get_webcast_reloaded_url = function(video_url, vtt_url, referer_url, force_http, force_https) {
-  force_http  = (typeof force_http  === 'boolean') ? force_http  : user_options.force_http
-  force_https = (typeof force_https === 'boolean') ? force_https : user_options.force_https
+  force_http  = (typeof force_http  === 'boolean') ? force_http  : user_options.greasemonkey.force_http
+  force_https = (typeof force_https === 'boolean') ? force_https : user_options.greasemonkey.force_https
 
   var encoded_video_url, encoded_vtt_url, encoded_referer_url, webcast_reloaded_base, webcast_reloaded_url
 
@@ -129,7 +135,7 @@ var redirect_to_url = function(url) {
 
   if (typeof GM_loadUrl === 'function') {
     if (typeof GM_resolveUrl === 'function')
-      url = GM_resolveUrl(url, state.current_window.location.href)
+      url = GM_resolveUrl(url, state.current_window.location.href) || url
 
     GM_loadUrl(url, 'Referer', state.current_window.location.href)
   }
@@ -139,10 +145,23 @@ var redirect_to_url = function(url) {
       state.current_window.location = url
     }
     catch(e) {
-      state.current_window = unsafeWindow
+      state.current_window = unsafeWindow.window
       state.current_window.location = url
     }
   }
+}
+
+var process_webmonkey_post_intent_redirect_to_url = function() {
+  var url = null
+
+  if (typeof user_options.webmonkey.post_intent_redirect_to_url === 'string')
+    url = user_options.webmonkey.post_intent_redirect_to_url
+
+  if (typeof user_options.webmonkey.post_intent_redirect_to_url === 'function')
+    url = user_options.webmonkey.post_intent_redirect_to_url()
+
+  if (typeof url === 'string')
+    redirect_to_url(url)
 }
 
 var process_video_url = function(video_url, video_type, referer_url) {
@@ -151,9 +170,10 @@ var process_video_url = function(video_url, video_type, referer_url) {
   if (typeof GM_startIntent === 'function') {
     // running in Android-WebMonkey: open Intent chooser
     GM_startIntent(/* action= */ 'android.intent.action.VIEW', /* data= */ video_url, /* type= */ video_type, /* extras: */ 'referUrl', referer_url)
+    process_webmonkey_post_intent_redirect_to_url()
     return true
   }
-  else if (user_options.redirect_to_webcast_reloaded) {
+  else if (user_options.greasemonkey.redirect_to_webcast_reloaded) {
     // running in standard web browser: redirect URL to top-level tool on Webcast Reloaded website
     redirect_to_url(get_webcast_reloaded_url(video_url, /* vtt_url= */ null, referer_url))
     return true
@@ -278,13 +298,13 @@ var process_current_window = function() {
 // ----------------------------------------------------------------------------- bootstrap
 
 var init = function() {
-  if (user_options.emulate_webmonkey && (unsafeWindow.top !== unsafeWindow)) return
+  if (user_options.common.emulate_webmonkey && (unsafeWindow.top !== unsafeWindow.window)) return
 
   if (state.current_window !== null) return
 
   if ((typeof GM_getUrl === 'function') && (GM_getUrl() !== unsafeWindow.location.href)) return
 
-  state.current_window    = unsafeWindow
+  state.current_window    = unsafeWindow.window
   state.poll_window_timer = 0
 
   unsafeWindow.onbeforeunload = clear_poll_window_timer
