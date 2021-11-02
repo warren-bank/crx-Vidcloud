@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Vidcloud
 // @description  Watch videos in external player.
-// @version      1.0.3
+// @version      1.0.4
 // @match        *://vidembed.cc/*
 // @match        *://*.vidembed.cc/*
 // @match        *://vidnext.net/*
@@ -29,6 +29,9 @@ var user_options = {
   "common": {
     "emulate_webmonkey":            false,
 
+    "show_episode_list":            true,
+    "sort_episode_list_ascending":  true,
+
     "poll_window_interval_ms":        500,
     "poll_window_timeout_ms":       30000
   },
@@ -41,6 +44,22 @@ var user_options = {
     "force_https":                  false
   }
 }
+
+// WebMonkey emulation may cause script to stop working in GreaseMonkey/TamperMonkey
+// WebMonkey emulation is highly recommended when episode list presentation is enabled;
+//   - otherwise the script runs in all frames and creates a race condition,
+//     in which the first script to find a video URL wins
+//   - when the winner occurs in an iframe,
+//     the episode list presentation code doesn't find any episode list in the DOM,
+//     and defaults to an immediate redirect to the video URL
+//
+// If the script does stop working in GreaseMonkey/TamperMonkey, either:
+//   - comment the following line,
+//     to preserve the race condition
+//   - change common options to:
+//      {emulate_webmonkey: false, show_episode_list: false}
+
+user_options.common.emulate_webmonkey = user_options.common.emulate_webmonkey || user_options.common.show_episode_list
 
 // ----------------------------------------------------------------------------- state
 
@@ -183,6 +202,95 @@ var process_video_url = function(video_url, video_type, referer_url) {
   }
 }
 
+// ----------------------------------------------------------------------------- conditionally rewrite DOM in current window
+
+var sort_episode_list_ascending = function($ul) {
+  // assumption: default sort order of list is [most-recent ... oldest]
+
+  var $li_all = $ul.querySelectorAll(':scope > li.video-block')
+
+  while ($ul.childNodes.length) {
+    $ul.removeChild($ul.childNodes[0])
+  }
+
+  for (var i=($li_all.length - 1); i >= 0; i--) {
+    $ul.appendChild($li_all[i])
+  }
+}
+
+var add_label_current = function($link_current) {
+  var $label = unsafeWindow.document.createElement('span')
+
+  $label.style.position        = 'absolute'
+  $label.style.bottom          = '0'
+  $label.style.right           = '0'
+  $label.style.backgroundColor = '#2ba9a5'
+  $label.style.color           = '#ffffff'
+  $label.style.padding         = '4px 10px'
+  $label.innerHTML             = 'Current Episode'
+
+  $link_current.appendChild($label)
+}
+
+var add_process_video_onclick_handler = function($link_current, video_url, video_type, referer_url) {
+  $link_current.onclick = function(event) {
+    event.stopPropagation();event.stopImmediatePropagation();event.preventDefault();event.returnValue=false;
+
+    process_video_url(video_url, video_type, referer_url)
+  }
+}
+
+var remove_playicon_overlay = function($link_current, $links_all) {
+  var $link, $overlay
+
+  for (var i=0; i < $links_all.length; i++) {
+    $link = $links_all[i]
+
+    if ($link === $link_current)
+      continue
+
+    $overlay = $link.querySelector(':scope > div.img > div.hover_watch')
+    if ($overlay) {
+      $overlay.style.display = 'none'
+    }
+  }
+}
+
+var preprocess_video_url = function(video_url, video_type, referer_url) {
+  clear_poll_window_timer()
+
+  var has_episodes, $ul, $body, $link_current, $links_all
+
+  has_episodes = false
+
+  $ul = unsafeWindow.document.querySelector('div.main-content > div.video-info > div.video-info-left > ul.items')
+  if ($ul && ($ul.querySelectorAll(':scope > li.video-block').length > 1)) {
+    has_episodes = true
+
+    $body = unsafeWindow.document.body
+    while ($body.childNodes.length) {
+      $body.removeChild($body.childNodes[0])
+    }
+    $body.appendChild($ul)
+
+    if (user_options.common.sort_episode_list_ascending)
+      sort_episode_list_ascending($ul)
+
+    $link_current = $ul.querySelector(':scope > li.video-block > a[href="' + unsafeWindow.location.pathname + '"]')
+    if ($link_current) {
+      add_label_current($link_current)
+      add_process_video_onclick_handler($link_current, video_url, video_type, referer_url)
+
+      $links_all = $ul.querySelectorAll(':scope > li.video-block > a[href]')
+      remove_playicon_overlay($link_current, $links_all)
+    }
+  }
+
+  if (!has_episodes) {
+    process_video_url(video_url, video_type, referer_url)
+  }
+}
+
 // ----------------------------------------------------------------------------- find iframe in current window
 
 var get_iframe_element = function() {
@@ -190,6 +298,9 @@ var get_iframe_element = function() {
   var iframe
 
   iframe = win.document.querySelector('#the_frame > iframe')
+  if (iframe) return iframe
+
+  iframe = win.document.querySelector('.watch_play > .play-video > iframe')
   if (iframe) return iframe
 
   iframe = win.document.querySelector('iframe[allowfullscreen="yes"]')
@@ -273,7 +384,12 @@ var process_current_window = function() {
 
         if (video_url) {
           referer_url = state.current_window.location.href || unsafeWindow.location.href
-          process_video_url(video_url, video_type, referer_url)
+
+          if (user_options.common.show_episode_list)
+            preprocess_video_url(video_url, video_type, referer_url)
+          else
+            process_video_url(video_url, video_type, referer_url)
+
           return true
         }
       }
