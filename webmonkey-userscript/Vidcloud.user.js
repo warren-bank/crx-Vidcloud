@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Vidcloud
 // @description  Watch videos in external player.
-// @version      1.0.4
+// @version      1.0.5
 // @match        *://vidembed.cc/*
 // @match        *://*.vidembed.cc/*
 // @match        *://vidnext.net/*
@@ -233,11 +233,19 @@ var add_label_current = function($link_current) {
 }
 
 var add_process_video_onclick_handler = function($link_current, video_url, video_type, referer_url) {
+  // onclick handler:
+  //   - in WebMonkey, start Intent
+  //   - in GreaseMonkey/TamperMonkey, redirect page
   $link_current.onclick = function(event) {
     event.stopPropagation();event.stopImmediatePropagation();event.preventDefault();event.returnValue=false;
 
     process_video_url(video_url, video_type, referer_url)
   }
+
+  // change link for current episode to WebcastReloaded website:
+  // - in GreaseMonkey/TamperMonkey, user can manually choose to open website in a new tab..
+  //   which keeps the current tab open w/ its list of available episodes
+  $link_current.setAttribute('href', get_webcast_reloaded_url(video_url, /* vtt_url= */ null, referer_url))
 }
 
 var remove_playicon_overlay = function($link_current, $links_all) {
@@ -286,9 +294,10 @@ var preprocess_video_url = function(video_url, video_type, referer_url) {
     }
   }
 
-  if (!has_episodes) {
+  if (has_episodes)
+    user_options.webmonkey.post_intent_redirect_to_url = null
+  else
     process_video_url(video_url, video_type, referer_url)
-  }
 }
 
 // ----------------------------------------------------------------------------- find iframe in current window
