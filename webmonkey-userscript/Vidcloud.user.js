@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Vidcloud
 // @description  Watch videos in external player.
-// @version      1.0.6
+// @version      1.0.7
 // @match        *://vidembed.cc/*
 // @match        *://*.vidembed.cc/*
 // @match        *://vidnext.net/*
@@ -72,15 +72,39 @@ var state = {
 
 var get_referer_url = function() {
   var referer_url
-
   try {
-    referer_url = state.current_window.location.href || unsafeWindow.location.href
+    referer_url = state.current_window.location.href
+    if (!referer_url) throw ''
   }
   catch(e) {
     referer_url = unsafeWindow.location.href
   }
-
   return referer_url
+}
+
+var get_vtt_url = function() {
+  var regex = /[\?&]sub=([^&]+)/i
+  var matches, vtt_url
+  try {
+    matches = regex.exec(state.current_window.location.search)
+    if (!matches || !matches.length) throw ''
+
+    vtt_url = matches[1]
+  }
+  catch(e) {
+    matches = regex.exec(unsafeWindow.location.search)
+    vtt_url = (!matches || !matches.length) ? null : matches[1]
+  }
+  if (vtt_url) {
+    try {
+      vtt_url = unsafeWindow.atob(vtt_url)
+    }
+    catch(e) {}
+  }
+  if (vtt_url && (vtt_url[0] === '/')) {
+    vtt_url = 'https://msubload.com/sub' + vtt_url
+  }
+  return vtt_url
 }
 
 var cancel_event = function(event) {
@@ -143,6 +167,7 @@ var get_webcast_reloaded_url = function(video_url, vtt_url, referer_url, force_h
   var encoded_video_url, encoded_vtt_url, encoded_referer_url, webcast_reloaded_base, webcast_reloaded_url
 
   encoded_video_url     = encodeURIComponent(encodeURIComponent(btoa(video_url)))
+  vtt_url               = vtt_url ? vtt_url : get_vtt_url()
   encoded_vtt_url       = vtt_url ? encodeURIComponent(encodeURIComponent(btoa(vtt_url))) : null
   referer_url           = referer_url ? referer_url : get_referer_url()
   encoded_referer_url   = encodeURIComponent(encodeURIComponent(btoa(referer_url)))
@@ -268,13 +293,14 @@ var process_webmonkey_post_intent_redirect_to_url = function() {
     redirect_to_url(url)
 }
 
-var process_video_url = function(video_url, video_type, referer_url) {
+var process_video_url = function(video_url, video_type, vtt_url, referer_url) {
   clear_poll_window_timer()
-
-  var vtt_url = null
 
   if (!video_url)
     return
+
+  if (!vtt_url)
+    vtt_url = get_vtt_url()
 
   if (!referer_url)
     referer_url = get_referer_url()
@@ -346,20 +372,20 @@ var add_label_current = function($link_current) {
   $link_current.appendChild($label)
 }
 
-var add_process_video_onclick_handler = function($link_current, video_url, video_type, referer_url) {
+var add_process_video_onclick_handler = function($link_current, video_url, video_type, vtt_url, referer_url) {
   // onclick handler:
   //   - in WebMonkey, start Intent
   //   - in GreaseMonkey/TamperMonkey, redirect page
   $link_current.onclick = function(event) {
     cancel_event(event)
 
-    process_video_url(video_url, video_type, referer_url)
+    process_video_url(video_url, video_type, vtt_url, referer_url)
   }
 
   // change link for current episode to WebcastReloaded website:
   // - in GreaseMonkey/TamperMonkey, user can manually choose to open website in a new tab..
   //   which keeps the current tab open w/ its list of available episodes
-  $link_current.setAttribute('href', get_webcast_reloaded_url(video_url, /* vtt_url= */ null, referer_url))
+  $link_current.setAttribute('href', get_webcast_reloaded_url(video_url, vtt_url, referer_url))
 }
 
 var remove_playicon_overlay = function($link_current, $links_all) {
@@ -378,7 +404,7 @@ var remove_playicon_overlay = function($link_current, $links_all) {
   }
 }
 
-var preprocess_video_url = function(video_url, video_type, referer_url) {
+var preprocess_video_url = function(video_url, video_type, vtt_url, referer_url) {
   clear_poll_window_timer()
 
   var has_episodes, $ul, $body, $link_current, $links_all
@@ -401,7 +427,7 @@ var preprocess_video_url = function(video_url, video_type, referer_url) {
     $link_current = $ul.querySelector(':scope > li.video-block > a[href="' + unsafeWindow.location.pathname + '"]')
     if ($link_current) {
       add_label_current($link_current)
-      add_process_video_onclick_handler($link_current, video_url, video_type, referer_url)
+      add_process_video_onclick_handler($link_current, video_url, video_type, vtt_url, referer_url)
 
       $links_all = $ul.querySelectorAll(':scope > li.video-block > a[href]')
       remove_playicon_overlay($link_current, $links_all)
@@ -411,7 +437,7 @@ var preprocess_video_url = function(video_url, video_type, referer_url) {
   if (has_episodes)
     user_options.webmonkey.post_intent_redirect_to_url = null
   else
-    process_video_url(video_url, video_type, referer_url)
+    process_video_url(video_url, video_type, vtt_url, referer_url)
 }
 
 // ----------------------------------------------------------------------------- find iframe in current window
@@ -474,7 +500,7 @@ var get_iframe_content = function() {
 // ----------------------------------------------------------------------------- process current window
 
 var process_current_window = function() {
-  var the_player, config, source, video_url, video_type, referer_url
+  var the_player, config, source, video_url, video_type, vtt_url, referer_url
   var iframe_content, delay_ms
 
   if (
@@ -524,12 +550,13 @@ var process_current_window = function() {
         }
 
         if (video_url) {
+          vtt_url     = get_vtt_url()
           referer_url = get_referer_url()
 
           if (user_options.common.show_episode_list)
-            preprocess_video_url(video_url, video_type, referer_url)
+            preprocess_video_url(video_url, video_type, vtt_url, referer_url)
           else
-            process_video_url(video_url, video_type, referer_url)
+            process_video_url(video_url, video_type, vtt_url, referer_url)
 
           return true
         }
