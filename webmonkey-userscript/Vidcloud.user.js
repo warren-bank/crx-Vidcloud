@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Vidcloud
 // @description  Watch videos in external player.
-// @version      1.0.5
+// @version      1.0.6
 // @match        *://vidembed.cc/*
 // @match        *://*.vidembed.cc/*
 // @match        *://vidnext.net/*
@@ -68,6 +68,25 @@ var state = {
   "poll_window_timer":              null
 }
 
+// ----------------------------------------------------------------------------- helpers
+
+var get_referer_url = function() {
+  var referer_url
+
+  try {
+    referer_url = state.current_window.location.href || unsafeWindow.location.href
+  }
+  catch(e) {
+    referer_url = unsafeWindow.location.href
+  }
+
+  return referer_url
+}
+
+var cancel_event = function(event) {
+  event.stopPropagation();event.stopImmediatePropagation();event.preventDefault();event.returnValue=false;
+}
+
 // ----------------------------------------------------------------------------- retry until success or timeout occurs
 
 var max_poll_window_attempts = Math.ceil(user_options.common.poll_window_timeout_ms / user_options.common.poll_window_interval_ms)
@@ -125,7 +144,7 @@ var get_webcast_reloaded_url = function(video_url, vtt_url, referer_url, force_h
 
   encoded_video_url     = encodeURIComponent(encodeURIComponent(btoa(video_url)))
   encoded_vtt_url       = vtt_url ? encodeURIComponent(encodeURIComponent(btoa(vtt_url))) : null
-  referer_url           = referer_url ? referer_url : unsafeWindow.location.href
+  referer_url           = referer_url ? referer_url : get_referer_url()
   encoded_referer_url   = encodeURIComponent(encodeURIComponent(btoa(referer_url)))
 
   webcast_reloaded_base = {
@@ -146,6 +165,72 @@ var get_webcast_reloaded_url = function(video_url, vtt_url, referer_url, force_h
 }
 
 // ----------------------------------------------------------------------------- URL redirect
+
+var determine_video_type = function(video_url) {
+  var video_url_regex_pattern = /^.*\.(mp4|mp4v|mpv|m1v|m4v|mpg|mpg2|mpeg|xvid|webm|3gp|avi|mov|mkv|ogv|ogm|m3u8|mpd|ism(?:[vc]|\/manifest)?)(?:[\?#].*)?$/i
+  var matches, file_ext, video_type
+
+  matches = video_url_regex_pattern.exec(video_url)
+
+  if (matches && matches.length)
+    file_ext = matches[1]
+
+  if (file_ext) {
+    switch (file_ext) {
+      case "mp4":
+      case "mp4v":
+      case "m4v":
+        video_type = "video/mp4"
+        break
+      case "mpv":
+        video_type = "video/MPV"
+        break
+      case "m1v":
+      case "mpg":
+      case "mpg2":
+      case "mpeg":
+        video_type = "video/mpeg"
+        break
+      case "xvid":
+        video_type = "video/x-xvid"
+        break
+      case "webm":
+        video_type = "video/webm"
+        break
+      case "3gp":
+        video_type = "video/3gpp"
+        break
+      case "avi":
+        video_type = "video/x-msvideo"
+        break
+      case "mov":
+        video_type = "video/quicktime"
+        break
+      case "mkv":
+        video_type = "video/x-mkv"
+        break
+      case "ogg":
+      case "ogv":
+      case "ogm":
+        video_type = "video/ogg"
+        break
+      case "m3u8":
+        video_type = "application/x-mpegURL"
+        break
+      case "mpd":
+        video_type = "application/dash+xml"
+        break
+      case "ism":
+      case "ism/manifest":
+      case "ismv":
+      case "ismc":
+        video_type = "application/vnd.ms-sstr+xml"
+        break
+    }
+  }
+
+  return video_type || ""
+}
 
 var redirect_to_url = function(url) {
   clear_poll_window_timer()
@@ -186,15 +271,44 @@ var process_webmonkey_post_intent_redirect_to_url = function() {
 var process_video_url = function(video_url, video_type, referer_url) {
   clear_poll_window_timer()
 
+  var vtt_url = null
+
+  if (!video_url)
+    return
+
+  if (!referer_url)
+    referer_url = get_referer_url()
+
   if (typeof GM_startIntent === 'function') {
     // running in Android-WebMonkey: open Intent chooser
-    GM_startIntent(/* action= */ 'android.intent.action.VIEW', /* data= */ video_url, /* type= */ video_type, /* extras: */ 'referUrl', referer_url)
+
+    if (!video_type)
+      video_type = determine_video_type(video_url)
+
+    var args = [
+      /* action = */ 'android.intent.action.VIEW',
+      /* data   = */ video_url,
+      /* type   = */ video_type
+    ]
+
+    // extras:
+    if (vtt_url) {
+      args.push('textUrl')
+      args.push(vtt_url)
+    }
+    if (referer_url) {
+      args.push('referUrl')
+      args.push(referer_url)
+    }
+
+    GM_startIntent.apply(this, args)
     process_webmonkey_post_intent_redirect_to_url()
     return true
   }
   else if (user_options.greasemonkey.redirect_to_webcast_reloaded) {
     // running in standard web browser: redirect URL to top-level tool on Webcast Reloaded website
-    redirect_to_url(get_webcast_reloaded_url(video_url, /* vtt_url= */ null, referer_url))
+
+    redirect_to_url(get_webcast_reloaded_url(video_url, vtt_url, referer_url))
     return true
   }
   else {
@@ -237,7 +351,7 @@ var add_process_video_onclick_handler = function($link_current, video_url, video
   //   - in WebMonkey, start Intent
   //   - in GreaseMonkey/TamperMonkey, redirect page
   $link_current.onclick = function(event) {
-    event.stopPropagation();event.stopImmediatePropagation();event.preventDefault();event.returnValue=false;
+    cancel_event(event)
 
     process_video_url(video_url, video_type, referer_url)
   }
@@ -386,13 +500,31 @@ var process_current_window = function() {
           source = config.sources[i]
           if (!source.file) continue
 
-          video_url  = source.file + ((source.type) ? ('#video.' + source.type) : '')
-          video_type = (source.type) ? ('video/' + source.type) : null
+          video_url  = source.file
+          video_type = determine_video_type(video_url)
+
+          if (!video_type && source.type) {
+            switch(source.type.toLowerCase()) {
+              case 'hls':
+                video_type = 'application/x-mpegURL'
+                video_url += '#video.m3u8'
+                break
+              case 'dash':
+                video_type = 'application/dash+xml'
+                video_url += '#video.mpd'
+                break
+              default:
+                video_type = source.type.replace(/^(video|application)\//, '')
+                video_url += '#video.' + video_type
+                video_type = ((source.type === video_type) ? 'video/' : '') + source.type.toLowerCase()
+                break
+            }
+          }
           break
         }
 
         if (video_url) {
-          referer_url = state.current_window.location.href || unsafeWindow.location.href
+          referer_url = get_referer_url()
 
           if (user_options.common.show_episode_list)
             preprocess_video_url(video_url, video_type, referer_url)
