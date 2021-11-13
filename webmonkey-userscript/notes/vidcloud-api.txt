@@ -1,0 +1,77 @@
+--------------------------------------------------------------------------------
+
+Vidcloud API:
+
+https://vidclouds.us/
+
+movie:
+  https://vidclouds.us/<imdb_id>.html
+
+tv episode:
+  https://vidclouds.us/tv.php?imdb=<imdb_id>&season=<season_number>&episode=<episode_number>
+
+--------------------------------------------------------------------------------
+// https://www.imdb.com/title/tt0491738/
+// view-source:https://vidclouds.us/tv.php?imdb=tt0491738&season=1&episode=1
+
+<script>
+var server1 = "loadserver.php?id1=N_7FN8NgNRNUN07QNvNA7~NVjsNDjeNJjGNfNCN0Nb7BNfN8NyN3NRNx7JNpNz7uN7jgNWNhNM7_NXNjjNN_NONT7SNKNq7rNxN8NPNJNHNxNrNeN7NwjTNLNC7YNAjjNFNre3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b8557e&id2=&type=video.mp4";
+var server2 = "loadserver.php?id1=jh7RNANiNgj3jNN6Nb7ZNe7kNwN7NUN9jAN9N4Nvj7NoNVNKNO7~NmjX7FNe7QN-7ljq7BNUNsNj7w7tN2NANQji71NxNSNj7O7BNa7tN8N3jMN.N875NQN_7uN8NWjTNk7ue991e4c76239fb14abad3945ed08da5394589e4b4017ccb1fe2570a3e1cfc94ejTN-jnjmNLNQNmNzjVN9N4N8NSNrNSN9NtN5jDNzjmjDNtjeNJN2NqjoN-7uNojLNfNdNSjLNbNDNR79NhNkjejs7Y&id2=&type=iframe.html";
+var subtitles = "loadserver.php?id1=N2NLNbNbNwNRNf7fNhNNNvNUN2NLNQNkNiNoNENJjbNMjGNzji7_NJj770Nj7QNmNMjKN.Nv7HNGNWNAN1NiNhNi7Z7DjbNGNNN3NaNJNPjmjsNO7lN8N.NNNC7k7QN5NINoed4c7a676c13c084b031cd01b02df12a525d6cfdd7fc10acdcc7addc169aea50jhjLjjjKNrNyN1Nvjj7Hjvjtjc&id2=&type=subtitles.srt";
+var aboutlink = "https://vidclouds.us";
+</script>
+<script src="https://vidclouds.us/script.js"></script>
+
+--------------------------------------------------------------------------------
+// https://vidclouds.us/script.js
+
+  jwplayer("player").setup({
+    sources: [{
+      file: server1,
+      type: "mp4",
+      label: "SD",
+    }],
+  })
+
+  jwplayer("player").on("error", function() {
+    $("#player").html('<div class="alternative"><iframe src="' + server2 + '" width="100%" height="100%" frameborder="0" allowfullscreen></iframe></div>');
+  });
+
+--------------------------------------------------------------------------------
+
+curl 'https://vidclouds.us/loadserver.php?id1=N_7FN8NgNRNUN07QNvNA7~NVjsNDjeNJjGNfNCN0Nb7BNfN8NyN3NRNx7JNpNz7uN7jgNWNhNM7_NXNjjNN_NONT7SNKNq7rNxN8NPNJNHNxNrNeN7NwjTNLNC7YNAjjNFNre3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b8557e&id2=&type=video.mp4' \
+  --insecure --compressed --include
+
+result:
+=======
+HTTP/2 302
+location:
+
+----------------------------------------
+
+curl 'https://vidclouds.us/loadserver.php?id1=jh7RNANiNgj3jNN6Nb7ZNe7kNwN7NUN9jAN9N4Nvj7NoNVNKNO7~NmjX7FNe7QN-7ljq7BNUNsNj7w7tN2NANQji71NxNSNj7O7BNa7tN8N3jMN.N875NQN_7uN8NWjTNk7ue991e4c76239fb14abad3945ed08da5394589e4b4017ccb1fe2570a3e1cfc94ejTN-jnjmNLNQNmNzjVN9N4N8NSNrNSN9NtN5jDNzjmjDNtjeNJN2NqjoN-7uNojLNfNdNSjLNbNDNR79NhNkjejs7Y&id2=&type=iframe.html' \
+  --insecure --compressed --include
+
+result:
+=======
+HTTP/2 302
+location: https://vidembed.cc/streaming.php?id=MzE1MTY2
+
+--------------------------------------------------------------------------------
+
+conclusions:
+============
+* API provides an easy way to lookup an episode in a series
+  - the page contains the variable: server2
+    which uses a 302 redirect to open the video player on the main website
+
+notes:
+======
+* a special-case handler is needed for the API results page
+  - otherwise, the userscript will find the value of: server1
+    in the instance of jwplayer on the page,
+    and process it as the video URL
+  - in my limited testing, this video URL never works..
+    and the website always relies on the iframe fallback strategy
+
+--------------------------------------------------------------------------------

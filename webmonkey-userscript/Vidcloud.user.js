@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Vidcloud
 // @description  Watch videos in external player.
-// @version      1.0.8
+// @version      1.0.9
 // @match        *://vidembed.cc/*
 // @match        *://*.vidembed.cc/*
 // @match        *://vidcloud.uno/*
@@ -589,6 +589,25 @@ var process_current_window = function() {
 
 // ----------------------------------------------------------------------------- bootstrap
 
+var handle_special_domains = function() {
+  var is_handled = false
+  var loc = unsafeWindow.location
+  var haystack, needle
+
+  // Vidcloud API
+  if (!is_handled && loc.hostname.toLowerCase().indexOf('vidclouds.us') >= 0) {
+    haystack = unsafeWindow.server2
+    needle = '&type=iframe'
+
+    if (haystack && (haystack.indexOf(needle) >= 0)) {
+      is_handled = true
+      redirect_to_url(haystack)
+    }
+  }
+
+  return is_handled
+}
+
 var init = function() {
   if (user_options.common.emulate_webmonkey && (unsafeWindow.top !== unsafeWindow.window)) return
 
@@ -600,6 +619,8 @@ var init = function() {
   state.poll_window_timer = 0
 
   unsafeWindow.onbeforeunload = clear_poll_window_timer
+
+  if (handle_special_domains()) return
 
   delay_poll_window(process_current_window, 0)
 }
