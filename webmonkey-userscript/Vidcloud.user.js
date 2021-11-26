@@ -1,7 +1,9 @@
 // ==UserScript==
 // @name         Vidcloud
 // @description  Watch videos in external player.
-// @version      1.0.9
+// @version      1.0.10
+// @match        *://vidembed.io/*
+// @match        *://*.vidembed.io/*
 // @match        *://vidembed.cc/*
 // @match        *://*.vidembed.cc/*
 // @match        *://vidcloud.uno/*
@@ -20,7 +22,7 @@
 // @match        *://seriesonline.host/movies/*
 // @match        *://*.seriesonline.host/episodes/*
 // @match        *://*.seriesonline.host/movies/*
-// @icon         https://vidembed.cc/favicon.png
+// @icon         https://vidembed.io/favicon.png
 // @run-at       document-end
 // @homepage     https://github.com/warren-bank/crx-Vidcloud/tree/webmonkey-userscript/es5
 // @supportURL   https://github.com/warren-bank/crx-Vidcloud/issues
