@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Vidcloud
 // @description  Watch videos in external player.
-// @version      1.0.10
+// @version      1.0.11
 // @match        *://vidembed.io/*
 // @match        *://*.vidembed.io/*
 // @match        *://vidembed.cc/*
@@ -68,6 +68,9 @@ var user_options = {
 //     to preserve the race condition
 //   - change common options to:
 //      {emulate_webmonkey: false, show_episode_list: false}
+
+if (unsafeWindow.location.pathname.indexOf('/load.php') === 0)
+  user_options.common.show_episode_list = false
 
 user_options.common.emulate_webmonkey = user_options.common.emulate_webmonkey || user_options.common.show_episode_list
 
