@@ -1,11 +1,13 @@
 // ==UserScript==
 // @name         Vidcloud
 // @description  Watch videos in external player.
-// @version      1.0.11
+// @version      1.0.12
 // @match        *://vidembed.io/*
 // @match        *://*.vidembed.io/*
 // @match        *://vidembed.cc/*
 // @match        *://*.vidembed.cc/*
+// @match        *://vidembed.me/*
+// @match        *://*.vidembed.me/*
 // @match        *://vidcloud.uno/*
 // @match        *://*.vidcloud.uno/*
 // @match        *://vidcloud9.com/*
