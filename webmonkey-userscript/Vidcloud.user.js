@@ -1,30 +1,26 @@
 // ==UserScript==
 // @name         Vidcloud
 // @description  Watch videos in external player.
-// @version      1.0.12
+// @version      1.0.13
+// @match        *://vidclouds.us/*
+// @match        *://*.vidclouds.us/*
+// @match        *://vidembed.me/*
+// @match        *://*.vidembed.me/*
 // @match        *://vidembed.io/*
 // @match        *://*.vidembed.io/*
 // @match        *://vidembed.cc/*
 // @match        *://*.vidembed.cc/*
-// @match        *://vidembed.me/*
-// @match        *://*.vidembed.me/*
-// @match        *://vidcloud.uno/*
-// @match        *://*.vidcloud.uno/*
 // @match        *://vidcloud9.com/*
 // @match        *://*.vidcloud9.com/*
-// @match        *://vidclouds.icu/*
-// @match        *://*.vidclouds.icu/*
-// @match        *://vidclouds.us/*
-// @match        *://*.vidclouds.us/*
 // @match        *://vidnext.net/*
 // @match        *://*.vidnext.net/*
 // @match        *://vidnode.net/*
 // @match        *://*.vidnode.net/*
-// @match        *://seriesonline.host/episodes/*
-// @match        *://seriesonline.host/movies/*
-// @match        *://*.seriesonline.host/episodes/*
-// @match        *://*.seriesonline.host/movies/*
-// @icon         https://vidembed.io/favicon.png
+// @match        *://vidclouds.icu/*
+// @match        *://*.vidclouds.icu/*
+// @match        *://vidcloud.uno/*
+// @match        *://*.vidcloud.uno/*
+// @icon         https://vidembed.me/favicon.png
 // @run-at       document-end
 // @homepage     https://github.com/warren-bank/crx-Vidcloud/tree/webmonkey-userscript/es5
 // @supportURL   https://github.com/warren-bank/crx-Vidcloud/issues
@@ -40,6 +36,7 @@
 var user_options = {
   "common": {
     "emulate_webmonkey":            false,
+    "perform_domain_redirect":      true,
 
     "show_episode_list":            true,
     "sort_episode_list_ascending":  true,
@@ -599,7 +596,8 @@ var process_current_window = function() {
 var handle_special_domains = function() {
   var is_handled = false
   var loc = unsafeWindow.location
-  var haystack, needle
+  var haystack, needle, new_url
+  var domain_redirect_regex
 
   // Vidcloud API
   if (!is_handled && loc.hostname.toLowerCase().indexOf('vidclouds.us') >= 0) {
@@ -607,8 +605,32 @@ var handle_special_domains = function() {
     needle = '&type=iframe'
 
     if (haystack && (haystack.indexOf(needle) >= 0)) {
+      new_url = haystack
+
       is_handled = true
-      redirect_to_url(haystack)
+      redirect_to_url(new_url)
+    }
+  }
+
+  // perform domain redirect
+  if (!is_handled && user_options.common.perform_domain_redirect) {
+    // defined as string, rather than literal, to assemble in parts..
+    domain_redirect_regex = [
+      'vidembed\\.(?:io|cc)',
+      'vidcloud9\\.(?:com)',
+      'vidnext\\.(?:net)',
+      'vidnode\\.(?:net)'
+    ]
+
+    domain_redirect_regex = '^(?:[^\\.]+\\.)*(?:' + domain_redirect_regex.join('|') + ')$'
+    domain_redirect_regex = new RegExp(domain_redirect_regex, 'i')
+
+    if (domain_redirect_regex.test(loc.hostname)) {
+      new_url = 'vidembed.me'
+      new_url = (loc.protocol || 'https:') + '//' + new_url + (loc.pathname || '/') + (loc.search || '') + (loc.hash || '')
+
+      is_handled = true
+      redirect_to_url(new_url)
     }
   }
 

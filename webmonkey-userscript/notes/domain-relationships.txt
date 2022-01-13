@@ -1,0 +1,67 @@
+--------------------------------------------------------------------------------
+domains that serve HTML pages:
+==============================
+
+view-source:https://vidembed.me/videos/shetland-season-6-episode-6
+  iframe: "vidembed.me"
+view-source:https://vidembed.io/videos/shetland-season-6-episode-6
+  iframe: "vidembed.me"
+
+view-source:https://vidclouds.icu/video/shetland-season-6-episode-6/
+  iframe: "vidclouds.icu"
+  note: structure of web page is different from other domains;
+        it does not list other episodes in a series
+view-source:https://vidcloud.uno/video/shetland-season-6-episode-6/
+  iframe: "vidclouds.icu"
+  note: structure of web page is same as "vidclouds.icu"
+
+--------------------------------------------------------------------------------
+domains that redirect:
+======================
+
+view-source:https://vidembed.cc/videos/shetland-season-6-episode-6
+  redirects to: "vidembed.io"
+view-source:https://vidcloud9.com/videos/shetland-season-6-episode-6
+  redirects to: "vidembed.io"
+view-source:https://vidnext.net/videos/shetland-season-6-episode-6
+  redirects to: "vidembed.io"
+view-source:https://vidnode.net/videos/shetland-season-6-episode-6
+  redirects to: "vidembed.io"
+
+view-source:https://vidclouds.icu/
+  redirects to: "vidcloud.uno"
+  note: only the "/" homepage path redirects; video pages do not
+
+--------------------------------------------------------------------------------
+summary:
+========
+
+* for the userscript to properly display a list of all episodes in a series,
+  the iframe must be hosted from the same domain;
+  otherwise, the userscript:
+  - cannot access the content of the iframe directly
+  - must redirect the browser window to access the video information
+  - loses access to the previous window, which contained the list of other episodes
+* the following domains don't include a list of all episodes in a series:
+  - "vidclouds.icu"
+  - "vidcloud.uno"
+* the following domains all redirect to "vidembed.io":
+  - "vidembed.cc"
+  - "vidcloud9.com"
+  - "vidnext.net"
+  - "vidnode.net"
+* the following domains all serve iframe hosted by "vidembed.me":
+  - "vidembed.me"
+  - "vidembed.io"
+
+strategy:
+=========
+
+* the following domains should all redirect to "vidembed.me":
+  - "vidembed.io"
+  - "vidembed.cc"
+  - "vidcloud9.com"
+  - "vidnext.net"
+  - "vidnode.net"
+
+--------------------------------------------------------------------------------
