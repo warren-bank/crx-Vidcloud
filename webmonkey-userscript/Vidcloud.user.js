@@ -1,26 +1,9 @@
 // ==UserScript==
 // @name         Vidcloud
 // @description  Watch videos in external player.
-// @version      1.0.13
-// @match        *://vidclouds.us/*
-// @match        *://*.vidclouds.us/*
-// @match        *://vidembed.me/*
-// @match        *://*.vidembed.me/*
-// @match        *://vidembed.io/*
-// @match        *://*.vidembed.io/*
-// @match        *://vidembed.cc/*
-// @match        *://*.vidembed.cc/*
-// @match        *://vidcloud9.com/*
-// @match        *://*.vidcloud9.com/*
-// @match        *://vidnext.net/*
-// @match        *://*.vidnext.net/*
-// @match        *://vidnode.net/*
-// @match        *://*.vidnode.net/*
-// @match        *://vidclouds.icu/*
-// @match        *://*.vidclouds.icu/*
-// @match        *://vidcloud.uno/*
-// @match        *://*.vidcloud.uno/*
-// @icon         https://vidembed.me/favicon.png
+// @version      1.0.14
+// @include      /^https?:\/\/(?:[^\.\/]*\.)*(?:vidclouds\.(?:us|icu)|vidcloud\.uno|vidcloud9\.com|vidembed\.(?:me|io|cc)|vidnext\.net|vidnode\.net|membed\.net)\/.*$/
+// @icon         https://membed.net/favicon.png
 // @run-at       document-end
 // @homepage     https://github.com/warren-bank/crx-Vidcloud/tree/webmonkey-userscript/es5
 // @supportURL   https://github.com/warren-bank/crx-Vidcloud/issues
