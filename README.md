@@ -5,7 +5,7 @@
 * the [Tampermonkey](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo) web browser extension for Chrome/Chromium
 
 Its purpose is to:
-* redirect embedded videos from [vidnext.net](https://vidnext.net/) to an external player
+* redirect embedded videos from [vidcloud1.com](https://vidcloud1.com/) to an external player
 
 #### Legal:
 
